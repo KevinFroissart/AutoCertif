@@ -11,3 +11,20 @@ mailto: maxence.bourdin2.etu@univ-lille.fr
 * Froissart Kévin 
 mailto: kevin.froissart.etu@univ-lille.fr
 
+# Prérequis
+
+fichier openssl.cnf présent à la racine du projet
+
+```
+cp /usr/local/etc/ssl/openssl.cnf chemin/openssl.cnf
+```
+
+Pouvoir executer en sudo
+
+# Utilisation
+
+```
+chmod +x ./autoCertif
+sudo ./autoCertif
+sudo ./autoCertif clean
+```
