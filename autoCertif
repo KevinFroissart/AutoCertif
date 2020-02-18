@@ -1,37 +1,47 @@
 #!/bin/sh
 
-installApache() {
-    while true; do
-        read -p "Apache2 is compulsory for this script to work, do you wish to install it ? y/n" yn
-        case $yn in
-            [Yy]* ) sudo apt install apache2 && echo "Apache2 installation: done"; break;;
-            [Nn]* ) break;;
-            * ) echo "Please answer yes or no.";;
-        esac
-    done
+#              USAGE:
+#      chmod +x ./autoCertif
+#      sudo ./autoCertif
+
+
+################## DECLARE FUNCTIONS ######################
+
+checkRoot() {
+   if [ $(id -u) -ne 0 ]; then
+     printf "Script must be run as root. Try 'sudo ./autoCertif'\n"
+     exit 1
+   fi
 }
 
-while true; do
-        read -p "Do you have apache2 installed ? y/n " yn
-        case $yn in
-            [Yy]* ) break;;
-            [Nn]* ) installApache;;
-            * ) echo "Please answer yes or no.";;
-        esac
-    done
-
-
-mkdir CA && mkdir CA/newcerts && mkdir CA/certrequests && mkdir CA/private
-echo "01" > CA/serial && touch CA/index.txt && echo "Architecture: done"
+checkNeededPackages() {
+   lst="openssl apache2"
+   for items in $lst
+   do
+     type -P $items &>/dev/null || {
+       echo -en "\n Package \"$items\" is not installed!"
+       echo -en "\n Install now? [yes]/[no]: "
+       read ops
+       case $ops in
+           [Yy]* ) sudo apt-get install $items ;;
+           	     *)  echo -e "\n Exiting..."
+               		break;;
+                    #exit 1 ;;
+       esac
+     }
+   done
+}
 
 informationCorrect() {
-    echo "Are these informations correct ?"
+    printf "\n\n"
     echo "Country name = "$countryName
     echo "State or province name = "$stateOrProvinceName
     echo "Organization name = "$organizationName
+    echo "Organizational Unit Name = "$organizationUnitName
+    echo "Common name = "$server_IP_address
 
     while true; do
-        echo "\n\n"
+        printf "\n\n"
         read -p "Are these informations correct ? y/n " yn
         case $yn in
             [Yy]* ) break;;
@@ -42,12 +52,38 @@ informationCorrect() {
 }
 
 informationQuerry() {
-    read -p "Country name = " countryName
-    read -p "State or province name = " stateOrProvinceName
-    read -p "Locality name = " localityName
-    read -p "Organization name = " organizationName
+    read -p "Country name (2 letter code) = " countryName
+    read -p "State or province name (full name) = " stateOrProvinceName
+    read -p "Locality name (eg, city) = " localityName
+    read -p "Organization name (eg, company) = " organizationName
+    read -p "Organizational Unit Name (eg, section) = " organizationUnitName
+    read -p "Common Name (e.g. server FQDN or YOUR name) = " server_IP_address
+    read -s -p "PEM pass phrase :" PEMpassword
     informationCorrect
 }
 
-informationQuerry
+changeInfo() {
+    sed -i 's/dir		= .\/demoCA/dir		= .\/CA/g' CA/ca.cnf
+    sed -i 's/countryName_default		= AU/countryName_default		= '$countryName'/g' CA/ca.cnf
+    sed -i 's/tateOrProvinceName_default	= Some-State/tateOrProvinceName_default	= '$stateOrProvinceName'/g' CA/ca.cnf
+    sed -i 's/localityName			= Locality Name (eg, city)/localityName			= '$localityName'/g' CA/ca.cnf
+    sed -i 's/0.organizationName_default	= World Wide Web Pty Ltd/0.organizationName_default	= '$organizationName'/g' CA/ca.cnf
+    sed -i 's/#organizationalUnitName_default	=/organizationalUnitName_default	= '$organizationUnitName'/g' CA/ca.cnf
+}
 
+######################## GO ###############################
+
+checkRoot
+checkNeededPackages
+
+mkdir CA && mkdir CA/newcerts && mkdir CA/certrequests && mkdir CA/private
+echo "01" > CA/serial && touch CA/index.txt && echo "Architecture: done"
+cp opensslcopy.cnf CA/ca.cnf
+
+changeInfo
+
+spawn sudo openssl req -new -x509 -extensions v3_ca -newkey rsa:4096 -keyout CA/private/cakey.pem -out CA/cacert.pem -config CA/ca.cnf
+
+expect "Enter PEM pass phrase:"
+
+send "$PEMpassword\r"
