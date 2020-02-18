@@ -1,8 +1,53 @@
 #!/bin/sh
 
+installApache() {
+    while true; do
+        read -p "Apache2 is compulsory for this script to work, do you wish to install it ? y/n" yn
+        case $yn in
+            [Yy]* ) sudo apt install apache2 && echo "Apache2 installation: done"; break;;
+            [Nn]* ) break;;
+            * ) echo "Please answer yes or no.";;
+        esac
+    done
+}
 
-# Création de l'architecture de fichier
+while true; do
+        read -p "Do you have apache2 installed ? y/n " yn
+        case $yn in
+            [Yy]* ) break;;
+            [Nn]* ) installApache;;
+            * ) echo "Please answer yes or no.";;
+        esac
+    done
+
+
 mkdir CA && mkdir CA/newcerts && mkdir CA/certrequests && mkdir CA/private
-# Initialisation du premier numéro de série et de l'index
 echo "01" > CA/serial && touch CA/index.txt && echo "Architecture: done"
+
+informationCorrect() {
+    echo "Are these informations correct ?"
+    echo "Country name = "$countryName
+    echo "State or province name = "$stateOrProvinceName
+    echo "Organization name = "$organizationName
+
+    while true; do
+        echo "\n\n"
+        read -p "Are these informations correct ? y/n " yn
+        case $yn in
+            [Yy]* ) break;;
+            [Nn]* ) informationQuerry;;
+            * ) echo "Please answer yes or no.";;
+        esac
+    done
+}
+
+informationQuerry() {
+    read -p "Country name = " countryName
+    read -p "State or province name = " stateOrProvinceName
+    read -p "Locality name = " localityName
+    read -p "Organization name = " organizationName
+    informationCorrect
+}
+
+informationQuerry
 
