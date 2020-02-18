@@ -3,6 +3,7 @@
 #              USAGE:
 #      chmod +x ./autoCertif
 #      sudo ./autoCertif
+#      sudo ./autoCertif clean
 
 
 ################## DECLARE FUNCTIONS ######################
@@ -73,14 +74,21 @@ changeInfo() {
 
 ######################## GO ###############################
 
+if [ "$1" = "clean" ]; then
+    rm -R --force CA || sudo rm -R CA
+    exit 0;
+fi
+
 checkRoot
 checkNeededPackages
 
 mkdir CA && mkdir CA/newcerts && mkdir CA/certrequests && mkdir CA/private
 echo "01" > CA/serial && touch CA/index.txt && echo "Architecture: done"
-cp opensslcopy.cnf CA/ca.cnf
+cp openssl.cnf CA/ca.cnf
 
-changeInfo
+informationQuerry
+
+changeInfo && printf"Config file: updated"
 
 spawn sudo openssl req -new -x509 -extensions v3_ca -newkey rsa:4096 -keyout CA/private/cakey.pem -out CA/cacert.pem -config CA/ca.cnf
 
