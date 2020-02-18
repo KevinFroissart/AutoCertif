@@ -1,0 +1,59 @@
+#!/bin/bash
+
+mkdir CA && mkdir CA/newcerts && mkdir CA/certrequests && mkdir CA/private &&echo "01" > CA/serial && touch CA/index.txt
+
+cp /usr/local/etc/ssl/openssl.cnf CA/ca.cnf
+
+echo "pensez à changer ça :
+[ CA_default ]
+dir = ./CA
+certificate = $dir/cacert.pem
+
+[ req_distinguished_name ]
+countryName_default = FR
+stateOrProvinceName_default = NORD
+localityName = VILLENEUVE ASCQ
+0.organizationName_default = SECURITE_IUT
+# The CA certificate"
+
+# pass phrase : passphrase
+
+sudo openssl req -new -x509 -extensions v3_ca -newkey rsa:4096 -keyout CA/private/cakey.pem -out CA/cacert.pem -config CA/ca.cnf
+
+sudo openssl req -new -nodes -newkey rsa:2048 -keyout CA/private/webserver.key -out CA/certrequests/webserver.csr -config CA/ca.cnf
+
+#challenge password = challengepassword
+
+sudo openssl ca -config CA/ca.cnf -policy policy_anything -out CA/newcerts/webserver.cert -infiles CA/certrequests/webserver.csr
+
+openssl x509 -in CA/newcerts/webserver.cert -noout -text
+
+sudo openssl verify -CAfile CA/cacert.pem CA/newcerts/webserver.cert
+
+mkdir /opt/apache2/ssl
+
+cp CA/private/webserver.key /opt/apache2/ssl/
+
+cp CA/newcerts/webserver.cert /opt/apache2/ssl/
+
+echo "Decommenter dans httpd.conf:
+LoadModule ssl_module modules/mod_ssl.so"
+
+echo "Rajouter :
+Listen 80 http
+Listen 443 https
+<VirtualHost *:80>
+ServerName www.example.com
+DocumentRoot \"/usr/local/apache2/htdocs\"
+</VirtualHost>
+<VirtualHost *:443>
+ServerName ssl.example.com
+SSLEngine On
+SSLCertificateFile \"/opt/apache2/ssl/webserver.cert\"
+SSLCertificateKeyFile \"/opt/apache2/ssl/webserver.key\"
+DocumentRoot \"/usr/local/apache2/htdocs\"
+</VirtualHost>"
+
+sudo apachectl stop
+sudo apachectl start
+
