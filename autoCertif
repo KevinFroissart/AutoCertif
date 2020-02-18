@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 #              USAGE:
 #      chmod +x ./autoCertif
@@ -16,7 +16,7 @@ checkRoot() {
 }
 
 checkNeededPackages() {
-   lst="openssl apache2"
+   lst="expect openssl apache2"
    for items in $lst
    do
      type -P $items &>/dev/null || {
@@ -37,9 +37,11 @@ informationCorrect() {
     printf "\n\n"
     echo "Country name = "$countryName
     echo "State or province name = "$stateOrProvinceName
+    echo "Locality name = "$localityName
     echo "Organization name = "$organizationName
     echo "Organizational Unit Name = "$organizationUnitName
     echo "Common name = "$server_IP_address
+    echo "Email Address = "$email
 
     while true; do
         printf "\n\n"
@@ -59,7 +61,8 @@ informationQuerry() {
     read -p "Organization name (eg, company) = " organizationName
     read -p "Organizational Unit Name (eg, section) = " organizationUnitName
     read -p "Common Name (e.g. server FQDN or YOUR name) = " server_IP_address
-    read -s -p "PEM pass phrase :" PEMpassword
+    read -p "Email Address = " email
+    read -s -p "PEM pass phrase (4-20 length) =  " PEMpassword
     informationCorrect
 }
 
@@ -68,18 +71,19 @@ changeInfo() {
     sed -i 's/countryName_default		= AU/countryName_default		= '$countryName'/g' CA/ca.cnf
     sed -i 's/tateOrProvinceName_default	= Some-State/tateOrProvinceName_default	= '$stateOrProvinceName'/g' CA/ca.cnf
     sed -i 's/localityName			= Locality Name (eg, city)/localityName			= '$localityName'/g' CA/ca.cnf
-    sed -i 's/0.organizationName_default	= World Wide Web Pty Ltd/0.organizationName_default	= '$organizationName'/g' CA/ca.cnf
+    sed -i 's/0.organizationName_default	= Internet Widgits Pty Ltd/0.organizationName_default	= '$organizationName'/g' CA/ca.cnf
     sed -i 's/#organizationalUnitName_default	=/organizationalUnitName_default	= '$organizationUnitName'/g' CA/ca.cnf
 }
 
 ######################## GO ###############################
+
+checkRoot
 
 if [ "$1" = "clean" ]; then
     rm -R --force CA || sudo rm -R CA
     exit 0;
 fi
 
-checkRoot
 checkNeededPackages
 
 mkdir CA && mkdir CA/newcerts && mkdir CA/certrequests && mkdir CA/private
@@ -88,10 +92,41 @@ cp openssl.cnf CA/ca.cnf
 
 informationQuerry
 
-changeInfo && printf"Config file: updated"
+changeInfo 
+
+printf "Config file: updated\n"
+
+/usr/bin/expect <<EOD
+set timeout 20
 
 spawn sudo openssl req -new -x509 -extensions v3_ca -newkey rsa:4096 -keyout CA/private/cakey.pem -out CA/cacert.pem -config CA/ca.cnf
 
 expect "Enter PEM pass phrase:"
-
 send "$PEMpassword\r"
+
+expect "Verifying - Enter PEM pass phrase:"
+send "$PEMpassword\r"
+
+expect "Country Name (2 letter code) \[FR\]:"
+send ".\r"
+
+expect "State or Province Name (full name) \[$stateOrProvinceName\]:\r"
+send ".\r"
+
+expect "$localityName []:\r"
+send ".\r"
+
+expect "Organization Name (eg, company) \[$organizationName\]:\r"
+send "$organizationName\r"
+
+expect "Organizational Unit Name (eg, section) \[\]:\r"
+send "$organizationUnitName\r"
+
+expect "Common Name (e.g. server FQDN or YOUR name) \[\]:\r"
+send "$server_IP_address\r"
+
+expect "Email Address \[\]:\r"
+send "$email\r"
+
+expect EOF
+EOD
