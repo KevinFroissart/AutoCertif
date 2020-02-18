@@ -1,3 +1,8 @@
 #!/bin/sh
 
-mkdir CA && mkdir CA/newcerts && mkdir CA/certrequests && mkdir CA/private && echo "01" > CA/serial && touch CA/index.txt
+
+# Création de l'architecture de fichier
+mkdir CA && mkdir CA/newcerts && mkdir CA/certrequests && mkdir CA/private
+# Initialisation du premier numéro de série et de l'index
+echo "01" > CA/serial && touch CA/index.txt && echo "Architecture: done"
+
