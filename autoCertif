@@ -1,0 +1,3 @@
+#!/bin/sh
+
+mkdir CA && mkdir CA/newcerts && mkdir CA/certrequests && mkdir CA/private && echo "01" > CA/serial && touch CA/index.txt
