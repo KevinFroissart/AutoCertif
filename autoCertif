@@ -134,8 +134,8 @@ printf "\n\nCertificate Signing Request successfully created\n\n"
 /usr/bin/expect <<EOD
 spawn sudo openssl ca -config CA/ca.cnf -policy policy_anything -out CA/newcerts/webserver.cert -infiles CA/certrequests/webserver.csr
 expect {Enter pass phrase for ./CA/private/cakey.pem:} {send "${PEMpassword}\n"}
-expect -re {Sign the certificate? [^:]*:} {send "y\n"}
-expect -re {1 out of 1 certificate requests certified, commit? [^:]*:} {send "y\n"}
+expect -re {Sign the certificate\? [^:]*:} {send "y\n"}
+expect -re {1 out of 1 certificate requests certified, commit\? [^:]*} {send "y\n"}
 expect eof
 EOD
 
@@ -145,11 +145,12 @@ printf "\n\nCertificate succesfully signed\n\n"
 
 sudo openssl verify -CAfile CA/cacert.pem CA/newcerts/webserver.cert
 
-mkdir -p /opt/apache2/ssl
+if mkdir -p /opt/apache2/ssl && cp CA/private/webserver.key /opt/apache2/ssl/ && cp CA/newcerts/webserver.cert /opt/apache2/ssl/; then
+    printf "Files corrected added to apache2\n"
+fi
 
-cp CA/private/webserver.key /opt/apache2/ssl/
+sed -i 's/#LoadModule ssl_module modules\/mod_ssl.so/LoadModule ssl_module modules\/mod_ssl.so/g' /usr/local/etc/httpd/httpd.conf
 
-cp CA/newcerts/webserver.cert /opt/apache2/ssl/
 
 
 
