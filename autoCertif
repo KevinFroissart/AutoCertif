@@ -139,7 +139,9 @@ expect -re {1 out of 1 certificate requests certified, commit? [^:]*:} {send "y\
 expect eof
 EOD
 
-openssl x509 -in CA/newcerts/webserver.cert -noout -text
+printf "\n\nCertificate succesfully signed\n\n"
+
+#openssl x509 -in CA/newcerts/webserver.cert -noout -text
 
 sudo openssl verify -CAfile CA/cacert.pem CA/newcerts/webserver.cert
 
