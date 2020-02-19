@@ -78,7 +78,7 @@ changeInfo() {
 
 ######################## GO ###############################
 
-#checkRoot
+checkRoot
 
 if [ "$1" = "clean" ]; then
     if rm -R --force CA; then
@@ -89,7 +89,7 @@ if [ "$1" = "clean" ]; then
     exit 0;
 fi
 
-#checkNeededPackages
+checkNeededPackages
 
 mkdir CA && mkdir CA/newcerts && mkdir CA/certrequests && mkdir CA/private
 echo "01" > CA/serial && touch CA/index.txt && echo "Architecture: done"
@@ -146,10 +146,11 @@ printf "\n\nCertificate succesfully signed\n\n"
 sudo openssl verify -CAfile CA/cacert.pem CA/newcerts/webserver.cert
 
 if mkdir -p /opt/apache2/ssl && cp CA/private/webserver.key /opt/apache2/ssl/ && cp CA/newcerts/webserver.cert /opt/apache2/ssl/; then
-    printf "Files corrected added to apache2\n"
+    printf "Files succesfully added to apache2\n"
 fi
 
 sed -i 's/#LoadModule ssl_module modules\/mod_ssl.so/LoadModule ssl_module modules\/mod_ssl.so/g' /usr/local/etc/httpd/httpd.conf
 
-sudo apachectl stop
-sudo apachectl start
+if sudo apachectl stop && sudo apachectl start; then
+    printf "apache2 restarted and ready for use"
+fi
