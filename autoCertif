@@ -81,7 +81,11 @@ changeInfo() {
 #checkRoot
 
 if [ "$1" = "clean" ]; then
-    rm -R --force CA || sudo rm -R CA
+    if rm -R --force CA; then
+        printf "Architecture: cleaned\n"
+    else sudo rm -R CA
+        printf "Architecture: cleaned\n"
+    fi
     exit 0;
 fi
 
@@ -97,63 +101,57 @@ changeInfo
 
 /usr/bin/expect <<EOD
 spawn sudo openssl req -new -x509 -extensions v3_ca -newkey rsa:4096 -keyout CA/private/cakey.pem -out CA/cacert.pem -config CA/ca.cnf
-expect {Enter PEM pass phrase:} {send "$PEMpassword\n"}
-expect {Verifying - Enter PEM pass phrase:} {send "$PEMpassword\n"}
-expect -re {Country Name \(2 letter code\) [^:]*:} {send "\n"}
-expect -re {State or Province Name \(full name\) [^:]*:} {send "\n"}
-expect -re {Locality Name \(eg, city\) [^:]*:} {send "\n"}
-expect -re {Organization Name \(eg, company\) [^:]*:} {send "\n"}
-expect -re {Organizational Unit Name \(eg, section\) [^:]*:} {send "\n"}
-expect -re {Common Name \(e.g. server FQDN or YOUR name\) [^:]*:} {send "${name}\n"}
-expect -re {Email Address [^:]*:} {send "\n"}
+expect {Enter PEM pass phrase:} {send "${PEMpassword}\n"}
+expect {Verifying - Enter PEM pass phrase:} {send "${PEMpassword}\n"}
+expect -re {Country Name \(2 letter code\) [^:]*:} {send ".\n"}
+expect -re {State or Province Name \(full name\) [^:]*:} {send ".\n"}
+expect -re {Locality Name \(eg, city\) [^:]*:} {send "${localityName}\n"}
+expect -re {Organization Name \(eg, company\) [^:]*:} {send ".\n"}
+expect -re {Organizational Unit Name \(eg, section\) [^:]*:} {send ".\n"}
+expect -re {Common Name \(e.g. server FQDN or YOUR name\) [^:]*:} {send "${server_IP_address}\n"}
+expect -re {Email Address [^:]*:} {send "${email}\n"}
 expect eof
 EOD
+
+printf "\n\nCertificate and private key succesfully created\n\n"
 
 /usr/bin/expect <<EOD
 spawn sudo openssl req -new -nodes -newkey rsa:2048 -keyout CA/private/webserver.key -out CA/certrequests/webserver.csr -config CA/ca.cnf
-expect {Enter PEM pass phrase:} {send "$PEMpassword\n"}
-expect {Verifying - Enter PEM pass phrase:} {send "$PEMpassword\n"}
-expect -re {Country Name \(2 letter code\) [^:]*:} {send "\n"}
-expect -re {State or Province Name \(full name\) [^:]*:} {send "\n"}
-expect -re {Locality Name \(eg, city\) [^:]*:} {send "\n"}
-expect -re {Organization Name \(eg, company\) [^:]*:} {send "\n"}
-expect -re {Organizational Unit Name \(eg, section\) [^:]*:} {send "\n"}
-expect -re {Common Name \(e.g. server FQDN or YOUR name\) [^:]*:} {send "${name}\n"}
-expect -re {Email Address [^:]*:} {send "\n"}
+expect -re {Country Name \(2 letter code\) [^:]*:} {send ".\n"}
+expect -re {State or Province Name \(full name\) [^:]*:} {send ".\n"}
+expect -re {Locality Name \(eg, city\) [^:]*:} {send "${localityName}\n"}
+expect -re {Organization Name \(eg, company\) [^:]*:} {send ".\n"}
+expect -re {Organizational Unit Name \(eg, section\) [^:]*:} {send ".\n"}
+expect -re {Common Name \(e.g. server FQDN or YOUR name\) [^:]*:} {send "${server_IP_address}\n"}
+expect -re {Email Address [^:]*:} {send "${email}\n"}
+expect -re {A challenge password [^:]*:} {send "${PEMpassword}\n"}
+expect -re {An optional company name [^:]*:} {send "\n"}
 expect eof
 EOD
 
+printf "\n\nCertificate Signing Request successfully created\n\n"
 
 /usr/bin/expect <<EOD
-set timeout 20
+spawn sudo openssl ca -config CA/ca.cnf -policy policy_anything -out CA/newcerts/webserver.cert -infiles CA/certrequests/webserver.csr
+expect {Enter pass phrase for ./CA/private/cakey.pem:} {send "${PEMpassword}\n"}
+expect -re {Sign the certificate? [^:]*:} {send "y\n"}
+expect -re {1 out of 1 certificate requests certified, commit? [^:]*:} {send "y\n"}
+expect eof
+EOD
 
-spawn openssl req -new -x509 -extensions v3_ca -newkey rsa:4096 -keyout CA/private/cakey.pem -out CA/cacert.pem -config CA/ca.cnf
+openssl x509 -in CA/newcerts/webserver.cert -noout -text
 
-expect "Enter PEM pass phrase:"
-send "$PEMpassword\r"
+sudo openssl verify -CAfile CA/cacert.pem CA/newcerts/webserver.cert
 
-expect "Verifying - Enter PEM pass phrase:"
-send "$PEMpassword\r"
+mkdir -p /opt/apache2/ssl
 
-expect "Country Name (2 letter code) \[FR\]:"
-send ".\r"
+cp CA/private/webserver.key /opt/apache2/ssl/
 
-expect "State or Province Name (full name) \[$stateOrProvinceName\]:\r"
-send ".\r"
+cp CA/newcerts/webserver.cert /opt/apache2/ssl/
 
-expect "$localityName []:\r"
-send ".\r"
 
-expect "Organization Name (eg, company) \[$organizationName\]:\r"
-send "$organizationName\r"
 
-expect "Organizational Unit Name (eg, section) \[\]:\r"
-send "$organizationUnitName\r"
 
-expect "Common Name (e.g. server FQDN or YOUR name) \[\]:\r"
-send "$server_IP_address\r"
 
-expect "Email Address \[\]:\r"
-send "$email\r"
-
-expect EOF
+#sudo apachectl stop
+#sudo apachectl start
