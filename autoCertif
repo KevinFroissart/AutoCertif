@@ -21,7 +21,7 @@ checkNeededPackages() {
    do
      type -P $items &>/dev/null || {
        echo -en "\n Package \"$items\" is not installed!"
-       echo -en "\n Install now? [yes]/[no]: "
+       echo -en "\n Install now? y/n: "
        read ops
        case $ops in
            [Yy]* ) sudo apt-get install $items ;;
@@ -70,21 +70,22 @@ changeInfo() {
     sed -i 's/dir		= .\/demoCA/dir		= .\/CA/g' CA/ca.cnf
     sed -i 's/countryName_default		= AU/countryName_default		= '$countryName'/g' CA/ca.cnf
     sed -i 's/tateOrProvinceName_default	= Some-State/tateOrProvinceName_default	= '$stateOrProvinceName'/g' CA/ca.cnf
-    sed -i 's/localityName			= Locality Name (eg, city)/localityName			= '$localityName'/g' CA/ca.cnf
+    #sed -i 's/localityName			= Locality Name (eg, city)/localityName			= '$localityName'/g' CA/ca.cnf
     sed -i 's/0.organizationName_default	= Internet Widgits Pty Ltd/0.organizationName_default	= '$organizationName'/g' CA/ca.cnf
     sed -i 's/#organizationalUnitName_default	=/organizationalUnitName_default	= '$organizationUnitName'/g' CA/ca.cnf
+    printf "Config file: updated\n"
 }
 
 ######################## GO ###############################
 
-checkRoot
+#checkRoot
 
 if [ "$1" = "clean" ]; then
     rm -R --force CA || sudo rm -R CA
     exit 0;
 fi
 
-checkNeededPackages
+#checkNeededPackages
 
 mkdir CA && mkdir CA/newcerts && mkdir CA/certrequests && mkdir CA/private
 echo "01" > CA/serial && touch CA/index.txt && echo "Architecture: done"
@@ -94,12 +95,25 @@ informationQuerry
 
 changeInfo 
 
-printf "Config file: updated\n"
+/usr/bin/expect <<EOD
+spawn sudo openssl req -new -x509 -extensions v3_ca -newkey rsa:4096 -keyout CA/private/cakey.pem -out CA/cacert.pem -config CA/ca.cnf
+expect {Enter PEM pass phrase:} {send "$PEMpassword\n"}
+expect {Verifying - Enter PEM pass phrase:} {send "$PEMpassword\n"}
+expect -re {Country Name \(2 letter code\) [^:]*:} {send "\n"}
+expect -re {State or Province Name \(full name\) [^:]*:} {send "\n"}
+expect -re {Locality Name \(eg, city\) [^:]*:} {send "\n"}
+expect -re {Organization Name \(eg, company\) [^:]*:} {send "\n"}
+expect -re {Organizational Unit Name \(eg, section\) [^:]*:} {send "\n"}
+expect -re {Common Name \(e.g. server FQDN or YOUR name\) [^:]*:} {send "${name}\n"}
+expect -re {Email Address [^:]*:} {send "\n"}
+expect eof
+EOD
+
 
 /usr/bin/expect <<EOD
 set timeout 20
 
-spawn sudo openssl req -new -x509 -extensions v3_ca -newkey rsa:4096 -keyout CA/private/cakey.pem -out CA/cacert.pem -config CA/ca.cnf
+spawn openssl req -new -x509 -extensions v3_ca -newkey rsa:4096 -keyout CA/private/cakey.pem -out CA/cacert.pem -config CA/ca.cnf
 
 expect "Enter PEM pass phrase:"
 send "$PEMpassword\r"
@@ -129,4 +143,3 @@ expect "Email Address \[\]:\r"
 send "$email\r"
 
 expect EOF
-EOD
