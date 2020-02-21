@@ -192,3 +192,5 @@ sed -i '/httpd-vhosts.conf/a Listen 80 http\nListen 443 https\n<VirtualHost *:80
 if sudo apachectl stop && sudo apachectl start; then
     printf "\n\napache2 has been restarted and is ready for use\n"
 fi
+
+# sudo find / -name httpd.conf 
