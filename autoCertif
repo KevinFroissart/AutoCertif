@@ -4,7 +4,8 @@
 #      chmod +x ./autoCertif
 #      sudo ./autoCertif
 #      sudo ./autoCertif clean
-
+#      sudo ./autoCertif init
+#      sudo ./autoCertif --help
 
 ################## DECLARE FUNCTIONS ######################
 
@@ -40,7 +41,7 @@ informationCorrect() {
     echo "Locality name = "$localityName
     echo "Organization name = "$organizationName
     echo "Organizational Unit Name = "$organizationUnitName
-    echo "Common name = "$server_IP_address
+    echo "Common name = "$commonName
     echo "Email Address = "$email
 
     while true; do
@@ -48,54 +49,87 @@ informationCorrect() {
         read -p "Are these informations correct ? y/n " yn
         case $yn in
             [Yy]* ) break;;
-            [Nn]* ) informationQuerry;;
+            [Nn]* ) printf "Please edit certificat.cfg to match expected informations\n"; exit 0;;
             * ) echo "Please answer yes or no.";;
         esac
     done
 }
 
-informationQuerry() {
-    read -p "Country name (2 letter code) = " countryName
-    read -p "State or province name (full name) = " stateOrProvinceName
-    read -p "Locality name (eg, city) = " localityName
-    read -p "Organization name (eg, company) = " organizationName
-    read -p "Organizational Unit Name (eg, section) = " organizationUnitName
-    read -p "Common Name (e.g. server FQDN or YOUR name) = " server_IP_address
-    read -p "Email Address = " email
-    read -s -p "PEM pass phrase (4-20 length) =  " PEMpassword
+readConfigFile() {
+    fichier=$(cat certificat.cfg)
+    fichier=$(echo $fichier | tr ' ' '=');
+    countryName=$(echo $fichier | awk -F '=' '{print $2}')
+    stateOrProvinceName=$(echo $fichier | awk -F '=' '{print $4}')
+    localityName=$(echo $fichier | awk -F '=' '{print $6}')
+    organizationName=$(echo $fichier | awk -F '=' '{print $8}')
+    organizationUnitName=$(echo $fichier | awk -F '=' '{print $10}')
+    commonName=$(echo $fichier | awk -F '=' '{print $12}')
+    email=$(echo $fichier | awk -F '=' '{print $14}')
     informationCorrect
+}
+
+informationQuerry() {
+    read -s -p "PEM pass phrase (4-20 length) =  " PEMpassword
+    changeInfo
 }
 
 changeInfo() {
     sed -i 's/dir		= .\/demoCA/dir		= .\/CA/g' CA/ca.cnf
     sed -i 's/countryName_default		= AU/countryName_default		= '$countryName'/g' CA/ca.cnf
     sed -i 's/tateOrProvinceName_default	= Some-State/tateOrProvinceName_default	= '$stateOrProvinceName'/g' CA/ca.cnf
-    #sed -i 's/localityName			= Locality Name (eg, city)/localityName			= '$localityName'/g' CA/ca.cnf
     sed -i 's/0.organizationName_default	= Internet Widgits Pty Ltd/0.organizationName_default	= '$organizationName'/g' CA/ca.cnf
     sed -i 's/#organizationalUnitName_default	=/organizationalUnitName_default	= '$organizationUnitName'/g' CA/ca.cnf
     printf "Config file: updated\n"
+}
+
+editConfigFile() {
+    if touch certificat.cfg && echo -e "countryName=\nStateOrProvinceName=\nlocalityName=\norganizationName=\norganizationUnitName=\ncommonName=\nemail=" > certificat.cfg; then
+        printf "certificat.cfg has been initialised and is ready to be modified\n" 
+    fi
 }
 
 ######################## GO ###############################
 
 checkRoot
 
-if [ "$1" = "clean" ]; then
+if [ "$#" -gt 1 ]; then
+    printf "Illegal number of parameters\n"
+    exit 2;
+elif [ "$1" = "--help" ]; then 
+    printf "\n Program must be run as sudo\n"
+    printf " It is mandatory to complete certificat.cfg\n"
+    printf " Config file openssl.cnf is also needed to run the program\n"
+    printf " Try 'sudo ./autoCertif' to create self-signed certificates,\n"
+    printf " an pre-built architechture to store the generated files\n"
+    printf " and to configure apache2 files\n"
+    printf " Try 'sudo ./autoCertif clean' to flush the architechture\n"
+    printf " Try 'sudo ./autoCertif init' to initialize the config file\n"
+    printf "\n"
+    exit 0;
+elif [ "$1" = "clean" ]; then
     if rm -R --force CA; then
         printf "Architecture: cleaned\n"
     else sudo rm -R CA
         printf "Architecture: cleaned\n"
     fi
     exit 0;
+elif [ "$1" = "init" ]; then
+    editConfigFile
+    exit 0;
+elif [ "$#" -eq 1 ]; then
+    printf "Illegal argument, try './autoCertif --help'\n"
+    exit 1;
 fi
 
 checkNeededPackages
 
+readConfigFile
+
+informationQuerry
+
 mkdir CA && mkdir CA/newcerts && mkdir CA/certrequests && mkdir CA/private
 echo "01" > CA/serial && touch CA/index.txt && echo "Architecture: done"
 cp openssl.cnf CA/ca.cnf
-
-informationQuerry
 
 changeInfo 
 
@@ -108,7 +142,7 @@ expect -re {State or Province Name \(full name\) [^:]*:} {send ".\n"}
 expect -re {Locality Name \(eg, city\) [^:]*:} {send "${localityName}\n"}
 expect -re {Organization Name \(eg, company\) [^:]*:} {send ".\n"}
 expect -re {Organizational Unit Name \(eg, section\) [^:]*:} {send ".\n"}
-expect -re {Common Name \(e.g. server FQDN or YOUR name\) [^:]*:} {send "${server_IP_address}\n"}
+expect -re {Common Name \(e.g. server FQDN or YOUR name\) [^:]*:} {send "${commonName}\n"}
 expect -re {Email Address [^:]*:} {send "${email}\n"}
 expect eof
 EOD
@@ -122,7 +156,7 @@ expect -re {State or Province Name \(full name\) [^:]*:} {send ".\n"}
 expect -re {Locality Name \(eg, city\) [^:]*:} {send "${localityName}\n"}
 expect -re {Organization Name \(eg, company\) [^:]*:} {send ".\n"}
 expect -re {Organizational Unit Name \(eg, section\) [^:]*:} {send ".\n"}
-expect -re {Common Name \(e.g. server FQDN or YOUR name\) [^:]*:} {send "${server_IP_address}\n"}
+expect -re {Common Name \(e.g. server FQDN or YOUR name\) [^:]*:} {send "${commonName}\n"}
 expect -re {Email Address [^:]*:} {send "${email}\n"}
 expect -re {A challenge password [^:]*:} {send "${PEMpassword}\n"}
 expect -re {An optional company name [^:]*:} {send "\n"}
@@ -152,5 +186,5 @@ fi
 sed -i 's/#LoadModule ssl_module modules\/mod_ssl.so/LoadModule ssl_module modules\/mod_ssl.so/g' /usr/local/etc/httpd/httpd.conf
 
 if sudo apachectl stop && sudo apachectl start; then
-    printf "apache2 restarted and ready for use"
+    printf "\n\napache2 has been restarted and is ready for use\n"
 fi
