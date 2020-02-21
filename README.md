@@ -20,6 +20,7 @@ cp /usr/local/etc/ssl/openssl.cnf chemin/openssl.cnf
 ```
 
 Pouvoir executer en sudo
+Avoir modifié le fichier certificat.cfg
 
 # Utilisation
 
@@ -27,4 +28,6 @@ Pouvoir executer en sudo
 chmod +x ./autoCertif
 sudo ./autoCertif
 sudo ./autoCertif clean
+sudo ./autoCertif init
+sudo ./autoCertif --help
 ```
