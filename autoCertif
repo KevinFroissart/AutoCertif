@@ -70,7 +70,6 @@ readConfigFile() {
 
 informationQuerry() {
     read -s -p "PEM pass phrase (4-20 length) =  " PEMpassword
-    changeInfo
 }
 
 changeInfo() {
@@ -173,7 +172,7 @@ expect -re {1 out of 1 certificate requests certified, commit\? [^:]*} {send "y\
 expect eof
 EOD
 
-printf "\n\nCertificate succesfully signed\n\n"
+printf "\nCertificate succesfully signed\n\n"
 
 #openssl x509 -in CA/newcerts/webserver.cert -noout -text
 
@@ -183,11 +182,20 @@ if mkdir -p /opt/apache2/ssl && cp CA/private/webserver.key /opt/apache2/ssl/ &&
     printf "Files succesfully added to apache2\n"
 fi
 
-sed -i 's/#LoadModule ssl_module modules\/mod_ssl.so/LoadModule ssl_module modules\/mod_ssl.so/g' /usr/local/etc/httpd/httpd.conf
+httpdFiles=$(locate httpd.conf)
 
-sed -i 's/Listen 80/#Listen 80/g' /usr/local/etc/httpd/httpd.conf
+for file in $httpdFiles
+do
+    sed -i 's/#LoadModule ssl_module modules\/mod_ssl.so/LoadModule ssl_module modules\/mod_ssl.so/g' $file
 
-sed -i '/httpd-vhosts.conf/a Listen 80 http\nListen 443 https\n<VirtualHost *:80>\n\tServerName www.example.com\n\tDocumentRoot \"/usr/local/apache2/htdocs\"\n</VirtualHost>\n<VirtualHost *:443>\n\tServerName ssl.example.com\n\tSSLEngine On\n\tSSLCertificateFile \"/opt/apache2/ssl/webserver.cert\"\n\tSSLCertificateKeyFile \"/opt/apache2/ssl/webserver.key\"\n\tDocumentRoot \"/usr/local/apache2/htdocs\"\n</VirtualHost>\n' /usr/local/etc/httpd/httpd.conf
+    if grep -ozqs -P "Listen 443 https\s<VirtualHost \*:80>\s\tServerName www.example.com\s\tDocumentRoot \"/usr/local/apache2/htdocs\"\s</VirtualHost>\s<VirtualHost \*:443>\s\tServerName ssl.example.com\s\tSSLEngine On\s\tSSLCertificateFile \"/opt/apache2/ssl/webserver.cert\"\s\tSSLCertificateKeyFile \"/opt/apache2/ssl/webserver.key\"\s\tDocumentRoot \"/usr/local/apache2/htdocs\"\s</VirtualHost>\s" $file; then
+        printf "files are already up to date\n"
+    else
+        sed -i 's/Listen 80/#Listen 80/g' $file
+        sed -i '/httpd-vhosts.conf/a Listen 80 http\nListen 443 https\n<VirtualHost *:80>\n\tServerName www.example.com\n\tDocumentRoot \"/usr/local/apache2/htdocs\"\n</VirtualHost>\n<VirtualHost *:443>\n\tServerName ssl.example.com\n\tSSLEngine On\n\tSSLCertificateFile \"/opt/apache2/ssl/webserver.cert\"\n\tSSLCertificateKeyFile \"/opt/apache2/ssl/webserver.key\"\n\tDocumentRoot \"/usr/local/apache2/htdocs\"\n</VirtualHost>\n' $file
+        printf "files has been updated\n"
+    fi
+done
 
 if sudo apachectl stop && sudo apachectl start; then
     printf "\n\napache2 has been restarted and is ready for use\n"
