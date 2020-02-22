@@ -1,0 +1,9 @@
+#!/bin/bash
+
+if grep -ozqs -P "Listen 443 https\s<VirtualHost \*:80>\s\tServerName www.example.com\s\tDocumentRoot \"/usr/local/apache2/htdocs\"\s</VirtualHost>\s<VirtualHost \*:443>\s\tServerName ssl.example.com\s\tSSLEngine On\s\tSSLCertificateFile \"/opt/apache2/ssl/webserver.cert\"\s\tSSLCertificateKeyFile \"/opt/apache2/ssl/webserver.key\"\s\tDocumentRoot \"/usr/local/apache2/htdocs\"\s</VirtualHost>\s" httpd.conf; then
+    printf "oui"
+fi
+
+
+
+#Listen 443 https\s<VirtualHost \*:80>\s\tServerName www.example.com\s\tDocumentRoot \"/usr/local/apache2/htdocs\"\s</VirtualHost>\s<VirtualHost *:443>\s\tServerName ssl.example.com\s\tSSLEngine On\s\tSSLCertificateFile \"/opt/apache2/ssl/webserver.cert\"\s\tSSLCertificateKeyFile \"/opt/apache2/ssl/webserver.key\"\s\tDocumentRoot \"/usr/local/apache2/htdocs\"\s</VirtualHost>\s
