@@ -49,7 +49,9 @@ informationCorrect() {
         read -p "Are these informations correct ? y/n " yn
         case $yn in
             [Yy]* ) break;;
-            [Nn]* ) printf "Please edit certificat.cfg to match expected informations\n"; exit 0;;
+            [Nn]* ) printf "Please edit certificat.cfg to match expected informations\n";
+            printf "Try 'sudo ./autoCertif init' if file missing or corrupted\n";
+            exit 0;;
             * ) echo "Please answer yes or no.";;
         esac
     done
@@ -69,7 +71,20 @@ readConfigFile() {
 }
 
 informationQuerry() {
-    read -s -p "PEM pass phrase (4-20 length) =  " PEMpassword
+    read -s -p "Enter a PEM pass phrase (4-20 length) = " PEMpassword
+    passwordLength
+}
+
+passwordLength() {
+    if [ ${#PEMpassword} -gt 20 ]; then
+        printf "Password is too long\n"
+        printf "Password's lenght must be between 4 and 20 !\n"
+        informationQuerry;
+    elif [ ${#PEMpassword} -lt 4 ]; then
+        printf "Password is too short\n"
+        printf "Password's lenght must be between 4 and 20 !\n"
+        informationQuerry;
+    fi
 }
 
 changeInfo() {
@@ -87,6 +102,21 @@ editConfigFile() {
     fi
 }
 
+editApache() {
+    for file in $1
+    do
+        sed -i 's/#LoadModule ssl_module modules\/mod_ssl.so/LoadModule ssl_module modules\/mod_ssl.so/g' $file
+
+        if grep -ozqs -P "Listen 443 https\s<VirtualHost \*:80>\s\tServerName www.example.com\s\tDocumentRoot \"/usr/local/apache2/htdocs\"\s</VirtualHost>\s<VirtualHost \*:443>\s\tServerName ssl.example.com\s\tSSLEngine On\s\tSSLCertificateFile \"/opt/apache2/ssl/webserver.cert\"\s\tSSLCertificateKeyFile \"/opt/apache2/ssl/webserver.key\"\s\tDocumentRoot \"/usr/local/apache2/htdocs\"\s</VirtualHost>\s" $file; then
+            printf "$file is already up to date\n"
+        else
+            sed -i 's/Listen 80/#Listen 80/g' $file
+            sed -i '/httpd-vhosts.conf/a Listen 80 http\nListen 443 https\n<VirtualHost *:80>\n\tServerName www.example.com\n\tDocumentRoot \"/usr/local/apache2/htdocs\"\n</VirtualHost>\n<VirtualHost *:443>\n\tServerName ssl.example.com\n\tSSLEngine On\n\tSSLCertificateFile \"/opt/apache2/ssl/webserver.cert\"\n\tSSLCertificateKeyFile \"/opt/apache2/ssl/webserver.key\"\n\tDocumentRoot \"/usr/local/apache2/htdocs\"\n</VirtualHost>\n' $file
+            printf "files has been updated\n"
+        fi
+    done
+}
+
 ######################## GO ###############################
 
 checkRoot
@@ -99,7 +129,7 @@ elif [ "$1" = "--help" ]; then
     printf " It is mandatory to complete certificat.cfg\n"
     printf " Config file openssl.cnf is also needed to run the program\n"
     printf " Try 'sudo ./autoCertif' to create self-signed certificates,\n"
-    printf " an pre-built architechture to store the generated files\n"
+    printf " a pre-built architechture to store the generated files\n"
     printf " and to configure apache2 files\n"
     printf " Try 'sudo ./autoCertif clean' to flush the architechture\n"
     printf " Try 'sudo ./autoCertif init' to initialize the config file\n"
@@ -160,7 +190,7 @@ expect -re {Email Address [^:]*:} {send "${email}\n"}
 expect -re {A challenge password [^:]*:} {send "${PEMpassword}\n"}
 expect -re {An optional company name [^:]*:} {send "\n"}
 expect eof
-EOD
+EOD 
 
 printf "\n\nCertificate Signing Request successfully created\n\n"
 
@@ -179,26 +209,11 @@ printf "\nCertificate succesfully signed\n\n"
 sudo openssl verify -CAfile CA/cacert.pem CA/newcerts/webserver.cert
 
 if mkdir -p /opt/apache2/ssl && cp CA/private/webserver.key /opt/apache2/ssl/ && cp CA/newcerts/webserver.cert /opt/apache2/ssl/; then
-    printf "Files succesfully added to apache2\n"
+    printf "\nFiles succesfully added to apache2\n"
 fi
 
-httpdFiles=$(locate httpd.conf)
+editApache "$(locate httpd.conf)"
 
-for file in $httpdFiles
-do
-    sed -i 's/#LoadModule ssl_module modules\/mod_ssl.so/LoadModule ssl_module modules\/mod_ssl.so/g' $file
-
-    if grep -ozqs -P "Listen 443 https\s<VirtualHost \*:80>\s\tServerName www.example.com\s\tDocumentRoot \"/usr/local/apache2/htdocs\"\s</VirtualHost>\s<VirtualHost \*:443>\s\tServerName ssl.example.com\s\tSSLEngine On\s\tSSLCertificateFile \"/opt/apache2/ssl/webserver.cert\"\s\tSSLCertificateKeyFile \"/opt/apache2/ssl/webserver.key\"\s\tDocumentRoot \"/usr/local/apache2/htdocs\"\s</VirtualHost>\s" $file; then
-        printf "files are already up to date\n"
-    else
-        sed -i 's/Listen 80/#Listen 80/g' $file
-        sed -i '/httpd-vhosts.conf/a Listen 80 http\nListen 443 https\n<VirtualHost *:80>\n\tServerName www.example.com\n\tDocumentRoot \"/usr/local/apache2/htdocs\"\n</VirtualHost>\n<VirtualHost *:443>\n\tServerName ssl.example.com\n\tSSLEngine On\n\tSSLCertificateFile \"/opt/apache2/ssl/webserver.cert\"\n\tSSLCertificateKeyFile \"/opt/apache2/ssl/webserver.key\"\n\tDocumentRoot \"/usr/local/apache2/htdocs\"\n</VirtualHost>\n' $file
-        printf "files has been updated\n"
-    fi
-done
-
-if sudo apachectl stop && sudo apachectl start; then
-    printf "\n\napache2 has been restarted and is ready for use\n"
+if sudo apachectl stop > /dev/null 2>&1 && sudo apachectl start > /dev/null; then
+    printf "\napache2 has been restarted and is ready for use\n"
 fi
-
-# sudo find / -name httpd.conf 
