@@ -117,6 +117,47 @@ editApache() {
     done
 }
 
+addUser() {
+    read -p "Add a user ? (admin/group...) y/n " yn
+    case $yn in
+        [Yy]* ) userAdd;;
+        [Nn]* ) exit 0;;
+        * ) echo "Please answer yes or no."; addUser;;
+    esac
+}
+
+userAdd() {
+    read -p "Enter the user name (ex: admin): " user
+    read -s -p "Enter the password: " passwd
+    printf "\n"
+    read -p "Confirm ? y/n " yn
+    while true; do
+        case $yn in
+            [Yy]* ) mkdir CA/secret/$user/;
+            printf "$user:$(openssl passwd -crypt $passwd)\n" >> CA/secret/$user/.htpasswd;
+            printf "<h1> Bienvenue $user </h1>" >> CA/secret/$user/index.html;
+            chmod 644 CA/secret/$user/*;
+            break;;
+            [Nn]* ) userAdd;;
+            * ) echo "Please answer yes or no.";;
+        esac
+    done
+    printf "\n$user added\n"
+    read -p "Add another user ? (admin/group...) y/n " yn
+    case $yn in
+        [Yy]* ) userAdd;;
+        [Nn]* ) exit 0;;
+        * ) echo "Please answer yes or no."; userAdd;;
+    esac
+}
+
+configureHtaccess() {
+    printf "AuthType Basic\n"
+    printf "AuthName \"Merci de vous authentifier\""
+    printf "AuthUserFile \"${PWD}/CA/secret/.htpasswd\""
+    printf "Require valid-user"
+}
+
 ######################## GO ###############################
 
 checkRoot
@@ -190,7 +231,7 @@ expect -re {Email Address [^:]*:} {send "${email}\n"}
 expect -re {A challenge password [^:]*:} {send "${PEMpassword}\n"}
 expect -re {An optional company name [^:]*:} {send "\n"}
 expect eof
-EOD 
+EOD
 
 printf "\n\nCertificate Signing Request successfully created\n\n"
 
@@ -213,7 +254,19 @@ if mkdir -p /opt/apache2/ssl && cp CA/private/webserver.key /opt/apache2/ssl/ &&
 fi
 
 editApache "$(locate httpd.conf)"
+editApache "$(locate 000-default.conf)"
+
+if sudo a2enmod ssl > /dev/null 2>&1; then
+    printf "\nApache ssl module has been enabled\n"
+fi  
 
 if sudo apachectl stop > /dev/null 2>&1 && sudo apachectl start > /dev/null; then
     printf "\napache2 has been restarted and is ready for use\n"
 fi
+
+mkdir CA/secret
+touch CA/secret/.htaccess && chmod 644 CA/secret/.htaccess
+
+addUser
+
+configureHtaccess
