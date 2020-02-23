@@ -43,6 +43,7 @@ informationCorrect() {
     echo "Organizational Unit Name = "$organizationUnitName
     echo "Common name = "$commonName
     echo "Email Address = "$email
+    echo "Public IP = "$publicIp
 
     while true; do
         printf "\n\n"
@@ -67,6 +68,7 @@ readConfigFile() {
     organizationUnitName=$(echo $fichier | awk -F '=' '{print $10}')
     commonName=$(echo $fichier | awk -F '=' '{print $12}')
     email=$(echo $fichier | awk -F '=' '{print $14}')
+    publicIp=$(echo $fichier | awk -F '=' '{print $16}')
     informationCorrect
 }
 
@@ -97,7 +99,7 @@ changeInfo() {
 }
 
 editConfigFile() {
-    if touch certificat.cfg && echo -e "countryName=\nStateOrProvinceName=\nlocalityName=\norganizationName=\norganizationUnitName=\ncommonName=\nemail=" > certificat.cfg; then
+    if touch certificat.cfg && echo -e "countryName=\nStateOrProvinceName=\nlocalityName=\norganizationName=\norganizationUnitName=\ncommonName=\nemail=\nmachinePublicIp=\n" > certificat.cfg; then
         printf "certificat.cfg has been initialised and is ready to be modified\n" 
     fi
 }
@@ -111,8 +113,14 @@ editApache() {
             printf "$file is already up to date\n"
         else
             sed -i 's/Listen 80/#Listen 80/g' $file
-            sed -i '/httpd-vhosts.conf/a Listen 80 http\nListen 443 https\n<VirtualHost *:80>\n\tServerName www.example.com\n\tDocumentRoot \"/usr/local/apache2/htdocs\"\n</VirtualHost>\n<VirtualHost *:443>\n\tServerName ssl.example.com\n\tSSLEngine On\n\tSSLCertificateFile \"/opt/apache2/ssl/webserver.cert\"\n\tSSLCertificateKeyFile \"/opt/apache2/ssl/webserver.key\"\n\tDocumentRoot \"/usr/local/apache2/htdocs\"\n</VirtualHost>\n' $file
-            printf "files has been updated\n"
+            if $(echo $file | grep "httpd.conf"); then
+                sed -i '/httpd-vhosts.conf/a Listen 80 http\nListen 443 https\n<VirtualHost *:80>\n\tServerName www.example.com\n\tDocumentRoot \"/usr/local/apache2/htdocs\"\n</VirtualHost>\n<VirtualHost *:443>\n\tServerName ssl.example.com\n\tSSLEngine On\n\tSSLCertificateFile \"/opt/apache2/ssl/webserver.cert\"\n\tSSLCertificateKeyFile \"/opt/apache2/ssl/webserver.key\"\n\tDocumentRoot \"/usr/local/apache2/htdocs\"\n</VirtualHost>\n' $file
+                printf "$file has been updated\n"
+            else
+                sed -i 's/SSLCertificateFile	\/etc\/ssl\/certs\/ssl-cert-snakeoil.pem/SSLCertificateFile	\/etc\/ssl\/certs\/webserver.pem/g' "$(locate default-ssl.conf)"
+                sed -i 's/SSLCertificateKeyFile \/etc\/ssl\/private\/ssl-cert-snakeoil.key/SSLCertificateKeyFile \/etc\/ssl\/private\/webserver.key/g' "$(locate default-ssl.conf)"
+                sed -i 's/SSLEngine Off/SSLEngine On/g' "$(locate default-ssl.conf)"
+            fi
         fi
     done
 }
@@ -130,32 +138,35 @@ userAdd() {
     read -p "Enter the user name (ex: admin): " user
     read -s -p "Enter the password: " passwd
     printf "\n"
-    read -p "Confirm ? y/n " yn
     while true; do
+        read -p "Confirm ? y/n " yn
         case $yn in
-            [Yy]* ) mkdir CA/secret/$user/;
-            printf "$user:$(openssl passwd -crypt $passwd)\n" >> CA/secret/$user/.htpasswd;
-            printf "<h1> Bienvenue $user </h1>" >> CA/secret/$user/index.html;
-            chmod 644 CA/secret/$user/*;
+            [Yy]* ) sudo mkdir /var/www/html/$user/ 2> /dev/null;
+            printf "$user:$(openssl passwd -crypt $passwd)\n" > /var/www/html/secret/.htpasswd;
+            printf "<h1> Bienvenue $user </h1>" > /var/www/html/$user/index.html;
+            chmod 644 /var/www/html/$user/.htaccess;
+            configureHtaccess $user;
             break;;
             [Nn]* ) userAdd;;
             * ) echo "Please answer yes or no.";;
         esac
     done
-    printf "\n$user added\n"
-    read -p "Add another user ? (admin/group...) y/n " yn
-    case $yn in
-        [Yy]* ) userAdd;;
-        [Nn]* ) exit 0;;
-        * ) echo "Please answer yes or no."; userAdd;;
-    esac
+    printf "\n$user added to /var/www/html/\n"
+    while true; do
+        read -p "Add another user ? (admin/group...) y/n " yn
+        case $yn in
+            [Yy]* ) userAdd;;
+            [Nn]* ) break;;
+            * ) echo "Please answer yes or no.";;
+        esac
+    done
 }
 
 configureHtaccess() {
-    printf "AuthType Basic\n"
-    printf "AuthName \"Merci de vous authentifier\""
-    printf "AuthUserFile \"${PWD}/CA/secret/.htpasswd\""
-    printf "Require valid-user"
+    printf "AuthType Basic\n" >> /var/www/html/$1/.htaccess;
+    printf "AuthName \"Merci de vous authentifier\"\n" >> /var/www/html/$1/.htaccess;
+    printf "AuthUserFile \"/var/www/html/secret/.htpasswd\"\n" >> /var/www/html/$1/.htaccess;
+    printf "Require valid-user\n">> /var/www/html/$1/.htaccess;
 }
 
 ######################## GO ###############################
@@ -226,7 +237,7 @@ expect -re {State or Province Name \(full name\) [^:]*:} {send ".\n"}
 expect -re {Locality Name \(eg, city\) [^:]*:} {send "${localityName}\n"}
 expect -re {Organization Name \(eg, company\) [^:]*:} {send ".\n"}
 expect -re {Organizational Unit Name \(eg, section\) [^:]*:} {send ".\n"}
-expect -re {Common Name \(e.g. server FQDN or YOUR name\) [^:]*:} {send "${commonName}\n"}
+expect -re {Common Name \(e.g. server FQDN or YOUR name\) [^:]*:} {send "${publicIp}\n"}
 expect -re {Email Address [^:]*:} {send "${email}\n"}
 expect -re {A challenge password [^:]*:} {send "${PEMpassword}\n"}
 expect -re {An optional company name [^:]*:} {send "\n"}
@@ -249,8 +260,14 @@ printf "\nCertificate succesfully signed\n\n"
 
 sudo openssl verify -CAfile CA/cacert.pem CA/newcerts/webserver.cert
 
-if mkdir -p /opt/apache2/ssl && cp CA/private/webserver.key /opt/apache2/ssl/ && cp CA/newcerts/webserver.cert /opt/apache2/ssl/; then
-    printf "\nFiles succesfully added to apache2\n"
+if sudo locate -q ssl/private/ > /dev/null 2>&1; then
+    if sudo cp CA/private/webserver.key /etc/ssl/private/ && sudo cp CA/newcerts/webserver.cert /etc/ssl/certs/; then
+        printf "\nFiles succesfully added to apache2\n"
+    fi
+else
+    if mkdir -p /opt/apache2/ssl && cp CA/private/webserver.key /opt/apache2/ssl/ && cp CA/newcerts/webserver.cert /opt/apache2/ssl/; then
+        printf "\nFiles succesfully added to apache2\n"
+    fi
 fi
 
 editApache "$(locate httpd.conf)"
@@ -264,8 +281,8 @@ if sudo apachectl stop > /dev/null 2>&1 && sudo apachectl start > /dev/null; the
     printf "\napache2 has been restarted and is ready for use\n"
 fi
 
-mkdir CA/secret
-touch CA/secret/.htaccess && chmod 644 CA/secret/.htaccess
+mkdir /var/www/html/secret 2> /dev/null
+touch /var/www/html/secret/.htaccess && chmod 644 /var/www/html/secret/.htaccess
 
 addUser
 
