@@ -117,7 +117,7 @@ editApache() {
                 sed -i '/httpd-vhosts.conf/a Listen 80 http\nListen 443 https\n<VirtualHost *:80>\n\tServerName www.example.com\n\tDocumentRoot \"/usr/local/apache2/htdocs\"\n</VirtualHost>\n<VirtualHost *:443>\n\tServerName ssl.example.com\n\tSSLEngine On\n\tSSLCertificateFile \"/opt/apache2/ssl/webserver.cert\"\n\tSSLCertificateKeyFile \"/opt/apache2/ssl/webserver.key\"\n\tDocumentRoot \"/usr/local/apache2/htdocs\"\n</VirtualHost>\n' $file
                 printf "$file has been updated\n"
             else
-                sed -i 's/SSLCertificateFile	\/etc\/ssl\/certs\/ssl-cert-snakeoil.pem/SSLCertificateFile	\/etc\/ssl\/certs\/webserver.pem/g' "$(locate default-ssl.conf)"
+                sed -i 's/SSLCertificateFile	\/etc\/ssl\/certs\/ssl-cert-snakeoil.pem/SSLCertificateFile	\/etc\/ssl\/certs\/webserver.cert/g' "$(locate default-ssl.conf)"
                 sed -i 's/SSLCertificateKeyFile \/etc\/ssl\/private\/ssl-cert-snakeoil.key/SSLCertificateKeyFile \/etc\/ssl\/private\/webserver.key/g' "$(locate default-ssl.conf)"
                 sed -i 's/SSLEngine Off/SSLEngine On/g' "$(locate default-ssl.conf)"
             fi
@@ -141,10 +141,11 @@ userAdd() {
     while true; do
         read -p "Confirm ? y/n " yn
         case $yn in
-            [Yy]* ) sudo mkdir /var/www/html/$user/ 2> /dev/null;
-            printf "$user:$(openssl passwd -crypt $passwd)\n" > /var/www/html/secret/.htpasswd;
+            [Yy]* ) mkdir /var/www/html/$user/ 2> /dev/null;
+            sudo sed -i '/'$user':/d' /var/www/html/secret/.htpasswd;
+            printf "$user:$(openssl passwd -crypt $passwd)\n" >> /var/www/html/secret/.htpasswd;
             printf "<h1> Bienvenue $user </h1>" > /var/www/html/$user/index.html;
-            chmod 644 /var/www/html/$user/.htaccess;
+            #chmod -R 644 /var/www/html/$user/;
             configureHtaccess $user;
             break;;
             [Nn]* ) userAdd;;
@@ -163,10 +164,12 @@ userAdd() {
 }
 
 configureHtaccess() {
+    printf "<Files /$1>\n" >> /var/www/html/$1/.htaccess;
     printf "AuthType Basic\n" >> /var/www/html/$1/.htaccess;
     printf "AuthName \"Merci de vous authentifier\"\n" >> /var/www/html/$1/.htaccess;
     printf "AuthUserFile \"/var/www/html/secret/.htpasswd\"\n" >> /var/www/html/$1/.htaccess;
     printf "Require valid-user\n">> /var/www/html/$1/.htaccess;
+    printf "</Files>\n" >> /var/www/html/$1/.htaccess;
 }
 
 ######################## GO ###############################
@@ -282,7 +285,7 @@ if sudo apachectl stop > /dev/null 2>&1 && sudo apachectl start > /dev/null; the
 fi
 
 mkdir /var/www/html/secret 2> /dev/null
-touch /var/www/html/secret/.htaccess && chmod 644 /var/www/html/secret/.htaccess
+touch /var/www/html/secret/.htpasswd && chmod 644 /var/www/html/secret/.htpasswd
 
 addUser
 
