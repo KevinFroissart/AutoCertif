@@ -117,9 +117,9 @@ editApache() {
                 sed -i '/httpd-vhosts.conf/a Listen 80 http\nListen 443 https\n<VirtualHost *:80>\n\tServerName www.example.com\n\tDocumentRoot \"/usr/local/apache2/htdocs\"\n</VirtualHost>\n<VirtualHost *:443>\n\tServerName ssl.example.com\n\tSSLEngine On\n\tSSLCertificateFile \"/opt/apache2/ssl/webserver.cert\"\n\tSSLCertificateKeyFile \"/opt/apache2/ssl/webserver.key\"\n\tDocumentRoot \"/usr/local/apache2/htdocs\"\n</VirtualHost>\n' $file
                 printf "$file has been updated\n"
             else
-                sed -i 's/SSLCertificateFile	\/etc\/ssl\/certs\/ssl-cert-snakeoil.pem/SSLCertificateFile	\/etc\/ssl\/certs\/webserver.cert/g' "$(locate default-ssl.conf)"
-                sed -i 's/SSLCertificateKeyFile \/etc\/ssl\/private\/ssl-cert-snakeoil.key/SSLCertificateKeyFile \/etc\/ssl\/private\/webserver.key/g' "$(locate default-ssl.conf)"
-                sed -i 's/SSLEngine Off/SSLEngine On/g' "$(locate default-ssl.conf)"
+                sudo sed -i 's/SSLCertificateFile	\/etc\/ssl\/certs\/ssl-cert-snakeoil.pem/SSLCertificateFile	\/etc\/ssl\/certs\/webserver.cert/g' "$(locate default-ssl.conf)"
+                sudo sed -i 's/SSLCertificateKeyFile \/etc\/ssl\/private\/ssl-cert-snakeoil.key/SSLCertificateKeyFile \/etc\/ssl\/private\/webserver.key/g' "$(locate default-ssl.conf)"
+                sudo sed -i 's/SSLEngine Off/SSLEngine On/g' "$(locate default-ssl.conf)"
             fi
         fi
     done
@@ -273,12 +273,12 @@ else
     fi
 fi
 
-editApache "$(locate httpd.conf)"
-editApache "$(locate 000-default.conf)"
-
 if sudo a2enmod ssl > /dev/null 2>&1; then
     printf "\nApache ssl module has been enabled\n"
 fi  
+
+editApache "$(locate httpd.conf)"
+editApache "$(locate 000-default.conf)"
 
 if sudo apachectl stop > /dev/null 2>&1 && sudo apachectl start > /dev/null; then
     printf "\napache2 has been restarted and is ready for use\n"
@@ -290,3 +290,9 @@ touch /var/www/html/secret/.htpasswd && chmod 644 /var/www/html/secret/.htpasswd
 addUser
 
 configureHtaccess
+
+#<Directory /var/www/>
+#	Options Indexes FollowSymLinks
+#	AllowOverride All
+#	Require all granted
+#</Directory>
