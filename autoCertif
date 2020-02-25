@@ -26,9 +26,8 @@ checkNeededPackages() {
        read ops
        case $ops in
            [Yy]* ) sudo apt-get install $items ;;
-           	     *)  echo -e "\n Exiting..."
-               		break;;
-                    #exit 1 ;;
+           	    *) echo -e "\n Exiting..."
+                exit 1 ;;
        esac
      }
    done
@@ -117,9 +116,9 @@ editApache() {
                 sed -i '/httpd-vhosts.conf/a Listen 80 http\nListen 443 https\n<VirtualHost *:80>\n\tServerName www.example.com\n\tDocumentRoot \"/usr/local/apache2/htdocs\"\n</VirtualHost>\n<VirtualHost *:443>\n\tServerName ssl.example.com\n\tSSLEngine On\n\tSSLCertificateFile \"/opt/apache2/ssl/webserver.cert\"\n\tSSLCertificateKeyFile \"/opt/apache2/ssl/webserver.key\"\n\tDocumentRoot \"/usr/local/apache2/htdocs\"\n</VirtualHost>\n' $file
                 printf "$file has been updated\n"
             else
-                sudo sed -i 's/SSLCertificateFile	\/etc\/ssl\/certs\/ssl-cert-snakeoil.pem/SSLCertificateFile	\/etc\/ssl\/certs\/webserver.cert/g' "$(locate default-ssl.conf)"
-                sudo sed -i 's/SSLCertificateKeyFile \/etc\/ssl\/private\/ssl-cert-snakeoil.key/SSLCertificateKeyFile \/etc\/ssl\/private\/webserver.key/g' "$(locate default-ssl.conf)"
-                sudo sed -i 's/SSLEngine Off/SSLEngine On/g' "$(locate default-ssl.conf)"
+                sudo sed -i 's/SSLCertificateFile	\/etc\/ssl\/certs\/ssl-cert-snakeoil.pem/SSLCertificateFile	\/etc\/ssl\/certs\/webserver.cert/g' /etc/apache2/sites-enabled/ # "$(locate default-ssl.conf)"
+                sudo sed -i 's/SSLCertificateKeyFile \/etc\/ssl\/private\/ssl-cert-snakeoil.key/SSLCertificateKeyFile \/etc\/ssl\/private\/webserver.key/g' /etc/apache2/sites-enabled/ #"$(locate default-ssl.conf)"
+                sudo sed -i 's/SSLEngine Off/SSLEngine On/g' /etc/apache2/sites-enabled/ #"$(locate default-ssl.conf)"
             fi
         fi
     done
@@ -148,7 +147,7 @@ userAdd() {
             #chmod -R 644 /var/www/html/$user/;
             configureHtaccess $user;
             break;;
-            [Nn]* ) userAdd;;
+            [Nn]* ) addUser;;
             * ) echo "Please answer yes or no.";;
         esac
     done
@@ -164,12 +163,16 @@ userAdd() {
 }
 
 configureHtaccess() {
-    printf "<Files /$1>\n" >> /var/www/html/$1/.htaccess;
-    printf "AuthType Basic\n" >> /var/www/html/$1/.htaccess;
-    printf "AuthName \"Merci de vous authentifier\"\n" >> /var/www/html/$1/.htaccess;
-    printf "AuthUserFile \"/var/www/html/secret/.htpasswd\"\n" >> /var/www/html/$1/.htaccess;
-    printf "Require valid-user\n">> /var/www/html/$1/.htaccess;
-    printf "</Files>\n" >> /var/www/html/$1/.htaccess;
+    if grep -sq "<Files" /var/www/html/$1/.htaccess; then
+        printf ".htacces already up to date";
+    else
+        printf "<Files /$1>\n" >> /var/www/html/$1/.htaccess;
+        printf "AuthType Basic\n" >> /var/www/html/$1/.htaccess;
+        printf "AuthName \"Merci de vous authentifier\"\n" >> /var/www/html/$1/.htaccess;
+        printf "AuthUserFile \"/var/www/html/secret/.htpasswd\"\n" >> /var/www/html/$1/.htaccess;
+        printf "Require valid-user\n">> /var/www/html/$1/.htaccess;
+        printf "</Files>\n" >> /var/www/html/$1/.htaccess;
+    fi
 }
 
 ######################## GO ###############################
