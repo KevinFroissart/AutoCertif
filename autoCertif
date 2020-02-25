@@ -10,27 +10,27 @@
 ################## DECLARE FUNCTIONS ######################
 
 checkRoot() {
-   if [ $(id -u) -ne 0 ]; then
-     printf "Script must be run as root. Try 'sudo ./autoCertif'\n"
-     exit 1
-   fi
+    if [ $(id -u) -ne 0 ]; then
+        printf "Script must be run as root. Try 'sudo ./autoCertif'\n"
+        exit 1
+    fi
 }
 
 checkNeededPackages() {
-   lst="expect openssl apache2"
-   for items in $lst
-   do
-     type -P $items &>/dev/null || {
-       echo -en "\n Package \"$items\" is not installed!"
-       echo -en "\n Install now? y/n: "
-       read ops
-       case $ops in
-           [Yy]* ) sudo apt-get install $items ;;
-           	    *) echo -e "\n Exiting..."
+    lst="expect openssl apache2"
+    for items in $lst
+    do
+        type -P $items &>/dev/null || {
+            echo -en "\n Package \"$items\" is not installed!"
+            echo -en "\n Install now? y/n: "
+            read ops
+            case $ops in
+                [Yy]* ) sudo apt-get install $items ;;
+                *) echo -e "\n Exiting..."
                 exit 1 ;;
-       esac
-     }
-   done
+            esac
+        }
+    done
 }
 
 informationCorrect() {
@@ -43,14 +43,14 @@ informationCorrect() {
     echo "Common name = "$commonName
     echo "Email Address = "$email
     echo "Public IP = "$publicIp
-
+    
     while true; do
         printf "\n\n"
         read -p "Are these informations correct ? y/n " yn
         case $yn in
             [Yy]* ) break;;
             [Nn]* ) printf "Please edit certificat.cfg to match expected informations\n";
-            printf "Try 'sudo ./autoCertif init' if file missing or corrupted\n";
+                printf "Try 'sudo ./autoCertif init' if file missing or corrupted\n";
             exit 0;;
             * ) echo "Please answer yes or no.";;
         esac
@@ -81,7 +81,7 @@ passwordLength() {
         printf "Password is too long\n"
         printf "Password's lenght must be between 4 and 20 !\n"
         informationQuerry;
-    elif [ ${#PEMpassword} -lt 4 ]; then
+        elif [ ${#PEMpassword} -lt 4 ]; then
         printf "Password is too short\n"
         printf "Password's lenght must be between 4 and 20 !\n"
         informationQuerry;
@@ -99,7 +99,7 @@ changeInfo() {
 
 editConfigFile() {
     if touch certificat.cfg && echo -e "countryName=\nStateOrProvinceName=\nlocalityName=\norganizationName=\norganizationUnitName=\ncommonName=\nemail=\nmachinePublicIp=\n" > certificat.cfg; then
-        printf "certificat.cfg has been initialised and is ready to be modified\n" 
+        printf "certificat.cfg has been initialised and is ready to be modified\n"
     fi
 }
 
@@ -107,7 +107,7 @@ editApache() {
     for file in $1
     do
         sed -i 's/#LoadModule ssl_module modules\/mod_ssl.so/LoadModule ssl_module modules\/mod_ssl.so/g' $file
-
+        
         if grep -ozqs -P "Listen 443 https\s<VirtualHost \*:80>\s\tServerName www.example.com\s\tDocumentRoot \"/usr/local/apache2/htdocs\"\s</VirtualHost>\s<VirtualHost \*:443>\s\tServerName ssl.example.com\s\tSSLEngine On\s\tSSLCertificateFile \"/opt/apache2/ssl/webserver.cert\"\s\tSSLCertificateKeyFile \"/opt/apache2/ssl/webserver.key\"\s\tDocumentRoot \"/usr/local/apache2/htdocs\"\s</VirtualHost>\s" $file; then
             printf "$file is already up to date\n"
         else
@@ -141,11 +141,11 @@ userAdd() {
         read -p "Confirm ? y/n " yn
         case $yn in
             [Yy]* ) mkdir /var/www/html/$user/ 2> /dev/null;
-            sudo sed -i '/'$user':/d' /var/www/html/secret/.htpasswd;
-            printf "$user:$(openssl passwd -crypt $passwd)\n" >> /var/www/html/secret/.htpasswd;
-            printf "<h1> Bienvenue $user </h1>" > /var/www/html/$user/index.html;
-            #chmod -R 644 /var/www/html/$user/;
-            configureHtaccess $user;
+                sudo sed -i '/'$user':/d' /var/www/html/secret/.htpasswd;
+                printf "$user:$(openssl passwd -crypt $passwd)\n" >> /var/www/html/secret/.htpasswd;
+                printf "<h1> Bienvenue $user </h1>" > /var/www/html/$user/index.html;
+                #chmod -R 644 /var/www/html/$user/;
+                configureHtaccess $user;
             break;;
             [Nn]* ) addUser; break;;
             * ) echo "Please answer yes or no.";;
@@ -182,7 +182,7 @@ checkRoot
 if [ "$#" -gt 1 ]; then
     printf "Illegal number of parameters\n"
     exit 2;
-elif [ "$1" = "--help" ]; then 
+    elif [ "$1" = "--help" ]; then
     printf "\n Program must be run as sudo\n"
     printf " It is mandatory to complete certificat.cfg\n"
     printf " Config file openssl.cnf is also needed to run the program\n"
@@ -193,17 +193,17 @@ elif [ "$1" = "--help" ]; then
     printf " Try 'sudo ./autoCertif init' to initialize the config file\n"
     printf "\n"
     exit 0;
-elif [ "$1" = "clean" ]; then
+    elif [ "$1" = "clean" ]; then
     if rm -R --force CA; then
         printf "Architecture: cleaned\n"
     else sudo rm -R CA
         printf "Architecture: cleaned\n"
     fi
     exit 0;
-elif [ "$1" = "init" ]; then
+    elif [ "$1" = "init" ]; then
     editConfigFile
     exit 0;
-elif [ "$#" -eq 1 ]; then
+    elif [ "$#" -eq 1 ]; then
     printf "Illegal argument, try './autoCertif --help'\n"
     exit 1;
 fi
@@ -218,7 +218,7 @@ mkdir CA && mkdir CA/newcerts && mkdir CA/certrequests && mkdir CA/private
 echo "01" > CA/serial && touch CA/index.txt && echo "Architecture: done"
 cp openssl.cnf CA/ca.cnf
 
-changeInfo 
+changeInfo
 
 /usr/bin/expect <<EOD
 spawn sudo openssl req -new -x509 -extensions v3_ca -newkey rsa:4096 -keyout CA/private/cakey.pem -out CA/cacert.pem -config CA/ca.cnf
@@ -278,7 +278,7 @@ fi
 
 if sudo a2enmod ssl > /dev/null 2>&1; then
     printf "\nApache ssl module has been enabled\n"
-fi  
+fi
 
 editApache "$(locate httpd.conf)"
 editApache "$(locate 000-default.conf)"
