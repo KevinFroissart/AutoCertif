@@ -116,9 +116,9 @@ editApache() {
                 sed -i '/httpd-vhosts.conf/a Listen 80 http\nListen 443 https\n<VirtualHost *:80>\n\tServerName www.example.com\n\tDocumentRoot \"/usr/local/apache2/htdocs\"\n</VirtualHost>\n<VirtualHost *:443>\n\tServerName ssl.example.com\n\tSSLEngine On\n\tSSLCertificateFile \"/opt/apache2/ssl/webserver.cert\"\n\tSSLCertificateKeyFile \"/opt/apache2/ssl/webserver.key\"\n\tDocumentRoot \"/usr/local/apache2/htdocs\"\n</VirtualHost>\n' $file
                 printf "$file has been updated\n"
             else
-                sudo sed -i 's/SSLCertificateFile	\/etc\/ssl\/certs\/ssl-cert-snakeoil.pem/SSLCertificateFile	\/etc\/ssl\/certs\/webserver.cert/g' /etc/apache2/sites-enabled/ # "$(locate default-ssl.conf)"
-                sudo sed -i 's/SSLCertificateKeyFile \/etc\/ssl\/private\/ssl-cert-snakeoil.key/SSLCertificateKeyFile \/etc\/ssl\/private\/webserver.key/g' /etc/apache2/sites-enabled/ #"$(locate default-ssl.conf)"
-                sudo sed -i 's/SSLEngine Off/SSLEngine On/g' /etc/apache2/sites-enabled/ #"$(locate default-ssl.conf)"
+                sudo sed -ie 's/SSLCertificateFile	\/etc\/ssl\/certs\/ssl-cert-snakeoil.pem/SSLCertificateFile	\/etc\/ssl\/certs\/webserver.cert/g' /etc/apache2/sites-enabled/default-ssl.conf # "$(locate default-ssl.conf)"
+                sudo sed -ie 's/SSLCertificateKeyFile \/etc\/ssl\/private\/ssl-cert-snakeoil.key/SSLCertificateKeyFile \/etc\/ssl\/private\/webserver.key/g' /etc/apache2/sites-enabled/default-ssl.conf #"$(locate default-ssl.conf)"
+                sudo sed -ie 's/SSLEngine Off/SSLEngine On/g' /etc/apache2/sites-enabled/default-ssl.conf #"$(locate default-ssl.conf)"
             fi
         fi
     done
@@ -128,7 +128,7 @@ addUser() {
     read -p "Add a user ? (admin/group...) y/n " yn
     case $yn in
         [Yy]* ) userAdd;;
-        [Nn]* ) exit 0;;
+        [Nn]* ) ;;
         * ) echo "Please answer yes or no."; addUser;;
     esac
 }
@@ -147,7 +147,7 @@ userAdd() {
             #chmod -R 644 /var/www/html/$user/;
             configureHtaccess $user;
             break;;
-            [Nn]* ) addUser;;
+            [Nn]* ) addUser; break;;
             * ) echo "Please answer yes or no.";;
         esac
     done
@@ -156,7 +156,7 @@ userAdd() {
         read -p "Add another user ? (admin/group...) y/n " yn
         case $yn in
             [Yy]* ) userAdd;;
-            [Nn]* ) break;;
+            [Nn]* ) exit 0;;
             * ) echo "Please answer yes or no.";;
         esac
     done
@@ -164,7 +164,7 @@ userAdd() {
 
 configureHtaccess() {
     if grep -sq "<Files" /var/www/html/$1/.htaccess; then
-        printf ".htacces already up to date";
+        printf ".htacces already up to date\n";
     else
         printf "<Files /$1>\n" >> /var/www/html/$1/.htaccess;
         printf "AuthType Basic\n" >> /var/www/html/$1/.htaccess;
@@ -293,6 +293,13 @@ touch /var/www/html/secret/.htpasswd && chmod 644 /var/www/html/secret/.htpasswd
 addUser
 
 configureHtaccess
+
+printf "\n\n .htaccess and .htpasswd files have been updated\n"
+printf " You can access your server at http://$publicIp/ using port 80\n"
+printf " Or using port 443 at https://$publicIp/\n"
+printf " To access https://$publicIp/ please import\n $PWD/CA/cacert.pem\n"
+printf " to your Web Browser.\n\n\n"
+
 
 #<Directory /var/www/>
 #	Options Indexes FollowSymLinks
