@@ -17,7 +17,7 @@ checkRoot() {
     fi
 }
 
-# Cette méthode permet de vérifier si tout les packets requis sont installé
+# Cette méthode permet de vérifier si tous les paquets requis sont installés
 checkNeededPackages() {
     lst="expect openssl apache2"
     for items in $lst
@@ -35,7 +35,7 @@ checkNeededPackages() {
     done
 }
 
-# Cette méthode affiche les informations entrée par l'utilisateur dans le fichier certificat.cfg
+# Cette méthode affiche les informations entrés par l'utilisateur dans le fichier certificat.cfg
 informationCorrect() {
     printf "\n\n"
     echo "Country name = "$countryName
@@ -60,7 +60,7 @@ informationCorrect() {
     done
 }
 
-# Cette méthode permet de lire le fichier certificat.cfg afin d'en récupérer son contenue
+# Cette méthode permet de lire le fichier certificat.cfg afin d'en récupérer son contenu
 readConfigFile() {
     fichier=$(cat certificat.cfg)
     fichier=$(echo $fichier | tr ' ' '=');
@@ -81,7 +81,7 @@ informationQuerry() {
     passwordLength
 }
 
-# Cette méthode permet de vérifier la longueure du mot de passe
+# Cette méthode permet de vérifier la longueur du mot de passe
 passwordLength() {
     if [ ${#PEMpassword} -gt 20 ]; then
         printf "Password is too long\n"
@@ -111,7 +111,7 @@ editConfigFile() {
     fi
 }
 
-# Cette méthode permet de modififier les fichiers de configuration d'apache
+# Cette méthode permet de modifier les fichiers de configuration d'apache
 editApache() {
     for file in $1
     do
@@ -166,18 +166,18 @@ if [ "$#" -gt 1 ]; then
     fi
     exit 0;
     
-    # Si le paramètre est "init" on créer le fichier certificat.cfg
+    # Si le paramètre est "init" on créé le fichier certificat.cfg
     elif [ "$1" = "init" ]; then
     editConfigFile
     exit 0;
     
-    # S'il n'y à qu'un paramètre et qu'il est inconnu on renvoie une erreur
+    # S'il n'y a qu'un paramètre et qu'il est inconnu on renvoie une erreur
     elif [ "$#" -eq 1 ]; then
     printf "Illegal argument, try './autoCertif --help'\n"
     exit 1;
 fi
 
-# Pour continuer on vérifie si tous les packets sont installés
+# Pour continuer on vérifie si tous les paquets sont installés
 checkNeededPackages
 
 # On lit le fichier certificat.cfg afin d'en récupérer son contenu
@@ -186,7 +186,7 @@ readConfigFile
 # L'utilisateur confirme si les informations lues sont correctes
 informationQuerry
 
-# On créer l'architecture de fichier et initialise les fichiers nécéssaire à la création des certificats
+# On créer l'architecture de fichier et initialise les fichiers nécéssaires à la création des certificats
 mkdir CA && mkdir CA/newcerts && mkdir CA/certrequests && mkdir CA/private
 echo "01" > CA/serial && touch CA/index.txt && echo "Architecture: done"
 cp openssl.cnf CA/ca.cnf
@@ -194,7 +194,7 @@ cp openssl.cnf CA/ca.cnf
 # On met à jour le fichier de configuration ca.cnf
 changeInfo
 
-# On créer le certificat ainsi que sa clé privée
+# On créé le certificat ainsi que sa clé privée
 /usr/bin/expect <<EOD
 spawn sudo openssl req -new -x509 -extensions v3_ca -newkey rsa:4096 -keyout CA/private/cakey.pem -out CA/cacert.pem -config CA/ca.cnf
 expect {Enter PEM pass phrase:} {send "${PEMpassword}\n"}
@@ -211,7 +211,7 @@ EOD
 
 printf "\n\nCertificate and private key succesfully created\n\n"
 
-# On emet la requête de certificat CSR
+# On émet la requête de certificat CSR
 /usr/bin/expect <<EOD
 spawn sudo openssl req -new -nodes -newkey rsa:2048 -keyout CA/private/webserver.key -out CA/certrequests/webserver.csr -config CA/ca.cnf
 expect -re {Country Name \(2 letter code\) [^:]*:} {send ".\n"}
@@ -228,7 +228,7 @@ EOD
 
 printf "\n\nCertificate Signing Request successfully created\n\n"
 
-# On créer finalement le certificat pour apache
+# On créé finalement le certificat pour apache
 /usr/bin/expect <<EOD
 spawn sudo openssl ca -config CA/ca.cnf -policy policy_anything -out CA/newcerts/webserver.cert -infiles CA/certrequests/webserver.csr
 expect {Enter pass phrase for ./CA/private/cakey.pem:} {send "${PEMpassword}\n"}
@@ -243,7 +243,7 @@ printf "\nCertificate succesfully signed\n\n"
 
 sudo openssl verify -CAfile CA/cacert.pem CA/newcerts/webserver.cert
 
-# On copie les fichiers nécéssaire au fonctionnement du module SSL d'apache
+# On copie les fichiers nécéssaires au fonctionnement du module SSL d'apache
 if sudo locate -q ssl/private/ > /dev/null 2>&1; then
     if sudo cp CA/private/webserver.key /etc/ssl/private/ && sudo cp CA/newcerts/webserver.cert /etc/ssl/certs/; then
         printf "\nFiles succesfully added to apache2\n"
@@ -259,7 +259,7 @@ if sudo a2enmod ssl > /dev/null 2>&1; then
     printf "\nApache ssl module has been enabled\n"
 fi
 
-# On met à jour les fichiers de confifuration d'apache
+# On met à jour les fichiers de configuration d'apache
 editApache "$(locate httpd.conf)"
 editApache "$(locate 000-default.conf)"
 
