@@ -133,57 +133,6 @@ editApache() {
     done
 }
 
-addUser() {
-    read -p "Add a user ? (admin/group...) y/n " yn
-    case $yn in
-        [Yy]* ) userAdd;;
-        [Nn]* ) ;;
-        * ) echo "Please answer yes or no."; addUser;;
-    esac
-}
-
-userAdd() {
-    read -p "Enter the user name (ex: admin): " user
-    read -s -p "Enter the password: " passwd
-    printf "\n"
-    while true; do
-        read -p "Confirm ? y/n " yn
-        case $yn in
-            [Yy]* ) mkdir /var/www/html/$user/ 2> /dev/null;
-                sudo sed -i '/'$user':/d' /var/www/html/secret/.htpasswd;
-                printf "$user:$(openssl passwd -crypt $passwd)\n" >> /var/www/html/secret/.htpasswd;
-                printf "<h1> Bienvenue $user </h1>" > /var/www/html/$user/index.html;
-                #chmod -R 644 /var/www/html/$user/;
-                configureHtaccess $user;
-            break;;
-            [Nn]* ) addUser; break;;
-            * ) echo "Please answer yes or no.";;
-        esac
-    done
-    printf "\n$user added to /var/www/html/\n"
-    while true; do
-        read -p "Add another user ? (admin/group...) y/n " yn
-        case $yn in
-            [Yy]* ) userAdd;;
-            [Nn]* ) exit 0;;
-            * ) echo "Please answer yes or no.";;
-        esac
-    done
-}
-
-configureHtaccess() {
-    if grep -sq "<Files" /var/www/html/$1/.htaccess; then
-        printf ".htacces already up to date\n";
-    else
-        printf "<Files /$1>\n" >> /var/www/html/$1/.htaccess;
-        printf "AuthType Basic\n" >> /var/www/html/$1/.htaccess;
-        printf "AuthName \"Merci de vous authentifier\"\n" >> /var/www/html/$1/.htaccess;
-        printf "AuthUserFile \"/var/www/html/secret/.htpasswd\"\n" >> /var/www/html/$1/.htaccess;
-        printf "Require valid-user\n">> /var/www/html/$1/.htaccess;
-        printf "</Files>\n" >> /var/www/html/$1/.htaccess;
-    fi
-}
-
 ######################## GO ########################
 
 # Si l'utlisateur est root le programme continue
@@ -207,7 +156,7 @@ if [ "$#" -gt 1 ]; then
     printf " Try 'sudo ./autoCertif init' to initialize the config file\n"
     printf "\n"
     exit 0;
-
+    
     # Si le paramètre est "clean" on efface l'architecture CA
     elif [ "$1" = "clean" ]; then
     if rm -R --force CA; then
@@ -216,12 +165,12 @@ if [ "$#" -gt 1 ]; then
         printf "Architecture: cleaned\n"
     fi
     exit 0;
-
+    
     # Si le paramètre est "init" on créer le fichier certificat.cfg
     elif [ "$1" = "init" ]; then
     editConfigFile
     exit 0;
-
+    
     # S'il n'y à qu'un paramètre et qu'il est inconnu on renvoie une erreur
     elif [ "$#" -eq 1 ]; then
     printf "Illegal argument, try './autoCertif --help'\n"
@@ -242,7 +191,7 @@ mkdir CA && mkdir CA/newcerts && mkdir CA/certrequests && mkdir CA/private
 echo "01" > CA/serial && touch CA/index.txt && echo "Architecture: done"
 cp openssl.cnf CA/ca.cnf
 
-# On met à jour le fichier de configuration ca.cnf 
+# On met à jour le fichier de configuration ca.cnf
 changeInfo
 
 # On créer le certificat ainsi que sa clé privée
@@ -294,7 +243,7 @@ printf "\nCertificate succesfully signed\n\n"
 
 sudo openssl verify -CAfile CA/cacert.pem CA/newcerts/webserver.cert
 
-# On copie les fichiers nécéssaire au fonctionnement du module SSL d'apache 
+# On copie les fichiers nécéssaire au fonctionnement du module SSL d'apache
 if sudo locate -q ssl/private/ > /dev/null 2>&1; then
     if sudo cp CA/private/webserver.key /etc/ssl/private/ && sudo cp CA/newcerts/webserver.cert /etc/ssl/certs/; then
         printf "\nFiles succesfully added to apache2\n"
@@ -319,22 +268,7 @@ if sudo apachectl stop > /dev/null 2>&1 && sudo apachectl start > /dev/null; the
     printf "\napache2 has been restarted and is ready for use\n"
 fi
 
-mkdir /var/www/html/secret 2> /dev/null
-touch /var/www/html/secret/.htpasswd && chmod 644 /var/www/html/secret/.htpasswd
-
-addUser
-
-configureHtaccess
-
-printf "\n\n .htaccess and .htpasswd files have been updated\n"
-printf " You can access your server at http://$publicIp/ using port 80\n"
+printf "\n You can access your server at http://$publicIp/ using port 80\n"
 printf " Or using port 443 at https://$publicIp/\n"
 printf " To access https://$publicIp/ please import\n $PWD/CA/cacert.pem\n"
 printf " to your Web Browser.\n\n\n"
-
-
-#<Directory /var/www/>
-#	Options Indexes FollowSymLinks
-#	AllowOverride All
-#	Require all granted
-#</Directory>
