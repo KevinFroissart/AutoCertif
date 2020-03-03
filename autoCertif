@@ -1,5 +1,12 @@
 #!/bin/bash
 
+#              AUTHORS
+#      Froissart Kévin : kevin.froissart.etu@univ-lille.fr
+#      Bourdin Maxence : maxence.bourdin2.etu@univ-lille.fr
+
+#      Version 1.1
+#      03/march/2020
+
 #              USAGE:
 #      chmod +x ./autoCertif
 #      sudo ./autoCertif
@@ -159,9 +166,9 @@ if [ "$#" -gt 1 ]; then
     
     # Si le paramètre est "clean" on efface l'architecture CA
     elif [ "$1" = "clean" ]; then
-    if rm -R --force CA; then
+    if rm -R --force CA > /dev/null 2>&1; then
         printf "Architecture: cleaned\n"
-    else sudo rm -R CA
+    else sudo rm -R CA > /dev/null 2>&1
         printf "Architecture: cleaned\n"
     fi
     exit 0;
@@ -241,6 +248,7 @@ printf "\nCertificate succesfully signed\n\n"
 
 #openssl x509 -in CA/newcerts/webserver.cert -noout -text
 
+# On vérifie si le certificat est valable
 sudo openssl verify -CAfile CA/cacert.pem CA/newcerts/webserver.cert
 
 # On copie les fichiers nécéssaires au fonctionnement du module SSL d'apache
